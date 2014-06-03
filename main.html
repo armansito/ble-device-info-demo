@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bluetooth LE Device Information Service Demo</title>
+  <script src="script.js"></script>
+</head>
+<body>
+  <h1>Bluetooth LE Device Information Service Demo</h1>
+  <div id="device-selection-div">
+    Select device with Device Information Service: 
+    <select id="device-selector">
+      <option id="placeholder" value="" disabled selected>
+        No connected devices
+      </option>
+    </select>
+  </div>
+  <div id="no-devices-error">
+    No device with "Device Information Service" selected.
+  </div>
+  <div id="device-info-fields">
+    <div class="device-info-field">
+      Manufacturer Name: <span id="manufacturer-name-string">-</span>
+    </div>
+  </div>
+</body>
+</html>

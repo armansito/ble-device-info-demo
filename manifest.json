@@ -1,0 +1,11 @@
+{
+  "name": "Bluetooth Low Energy Device Information Service Demo",
+  "description": "Device Information Demo using chrome.bluetoothLowEnergy",
+  "version": "0.1",
+  "app": {
+    "background": {
+      "scripts": ["background.js"]
+    }
+  },
+  "bluetooth": {}
+}
