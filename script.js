@@ -6,9 +6,7 @@ var HARDWARE_REVISION_STRING_CHRC_UUID = '00002a27-0000-1000-8000-00805f9b34fb';
 
 // The currently displayed service and characteristics.
 var deviceInfoService;
-var manufacturerNameStringCharacteristic;
-var serialNumberStringCharacteristic;
-var hardwareRevisionStringCharacteristic;
+var characteristicMap = {};
 
 // A mapping from device addresses to device names for found devices that expose
 // a Device Information service.
@@ -28,9 +26,7 @@ function selectService(service) {
   clearAllFields();
 
   deviceInfoService = service;
-  manufacturerNameStringCharacteristic = undefined;
-  serialNumberStringCharacteristic = undefined;
-  hardwareRevisionStringCharacteristic = undefined;
+  characteristicMap = {};
 
   if (!service) {
     console.log('No service selected.');
@@ -57,186 +53,86 @@ function selectService(service) {
     }
 
     chrcs.forEach(function (chrc) {
+      var fieldId;
+
       if (chrc.uuid == MANUFACTURER_NAME_STRING_CHRC_UUID) {
         console.log('Setting Manufacturer Name String Characteristic: ' +
                     chrc.instanceId);
-        manufacturerNameStringCharacteristic = chrc;
-
-        // Read the value of the characteristic once and store it.
-        chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
-                                                          function (readChrc) {
-          if (chrome.runtime.lastError) {
-            console.log(chrome.runtime.lastError.message);
-            return;
-          }
-
-          // Make sure that the same characteristic is still selected.
-          if (readChrc.instanceId !=
-              manufacturerNameStringCharacteristic.instanceId)
-            return;
-
-          manufacturerNameStringCharacteristic = readChrc;
-          updateManufacturerNameStringValue();
-        });
-
-        return;
-      }
-
-      if (chrc.uuid == SERIAL_NUMBER_STRING_CHRC_UUID) {
+        fieldId = 'manufacturer-name-string';
+      } else if (chrc.uuid == SERIAL_NUMBER_STRING_CHRC_UUID) {
         console.log('Setting Serial Number String Characteristic: ' +
                     chrc.instanceId);
-        serialNumberStringCharacteristic = chrc;
-
-        // Read the value of the characteristic once and store it.
-        chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
-                                                          function (readChrc) {
-          if (chrome.runtime.lastError) {
-            console.log(chrome.runtime.lastError.message);
-            return;
-          }
-
-          // Make sure that the same characteristic is still selected.
-          if (readChrc.instanceId !=
-              serialNumberStringCharacteristic.instanceId)
-            return;
-
-          serialNumberStringCharacteristic = readChrc;
-          updateSerialNumberStringValue();
-        });
-
-        return;
-      }
-
-      if (chrc.uuid == HARDWARE_REVISION_STRING_CHRC_UUID) {
+        fieldId = 'serial-number-string';
+      } else if (chrc.uuid == HARDWARE_REVISION_STRING_CHRC_UUID) {
         console.log('Setting Hardware Revision String Characteristic: ' +
                     chrc.instanceId);
-        hardwareRevisionStringCharacteristic = chrc;
+        fieldId = 'hardware-revision-string';
+      }
 
-        // Read the value of the characteristic once and store it.
-        chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
-                                                          function (readChrc) {
-          if (chrome.runtime.lastError) {
-            console.log(chrome.runtime.lastError.message);
-            return;
-          }
-
-          // Make sure that the same characteristic is still selected.
-          if (readChrc.instanceId !=
-              hardwareRevisionStringCharacteristic.instanceId)
-            return;
-
-          hardwareRevisionStringCharacteristic = readChrc;
-          updateHardwareRevisionStringValue();
-        });
-
+      if (fieldId === undefined) {
+        console.log('Ignoring characteristic "' + chrc.instanceId +
+                    '" with UUID ' + chrc.uuid);
         return;
       }
+
+      characteristicMap[fieldId] = chrc;
+
+      // Read the value of the characteristic and store it.
+      chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
+                                                        function (readChrc) {
+        if (chrome.runtime.lastError) {
+          console.log(chrome.runtime.lastError.message);
+          return;
+        }
+
+        // Make sure that the same characteristic is still selected.
+        if (!characteristicMap.hasOwnProperty(fieldId) ||
+            characteristicMap[fieldId].instanceId != readChrc.instanceId)
+          return;
+
+        characteristicMap[fieldId] = readChrc;
+        updateStringValue(fieldId, readChrc);
+      });
     });
   });
 }
 
 /**
- * Updates the Manufacturer Name String field based on the value of the
- * currently selected Manufacturer Name String characteristic.
+ * Updates the field with identifier |id| with the current value of the
+ * characteristic |characteristic| interpreted as a UTF-8 string.
  */
-function updateManufacturerNameStringValue() {
-  if (!manufacturerNameStringCharacteristic) {
-    console.log('No Manufacturer Name String Characteristic selected');
-    return;
-  }
-
+function updateStringValue(id, characteristic) {
   // Since this function is called after a read request, the value should be
   // present if the read was successful but it may be undefined if the read
   // failed, so check here.
-  if (!manufacturerNameStringCharacteristic.value) {
-    console.log('No Manufacturer Name String value has been read');
+  if (!characteristic.value) {
+    console.log('No value has been read for characteristic: ' +
+                characteristic.instanceId);
     return;
   }
 
-  var name = String.fromCharCode.apply(
-      null,
-      new Uint8Array(manufacturerNameStringCharacteristic.value));
+  var valueString = String.fromCharCode.apply(
+      null, new Uint8Array(characteristic.value));
 
-  console.log('Manufacturer Name: ' + name);
-  setManufacturerName('"' + name + '"');
-}
-
-/**
- * Updates the Serial Number String field based on the value of the
- * currently selected Serian Number String characteristic.
- */
-function updateSerialNumberStringValue() {
-  if (!serialNumberStringCharacteristic) {
-    console.log('No Serial Number String Characteristic selected');
-    return;
-  }
-
-  // Since this function is called after a read request, the value should be
-  // present if the read was successful but it may be undefined if the read
-  // failed, so check here.
-  if (!serialNumberStringCharacteristic.value) {
-    console.log('No Serial Number String value has been read');
-    return;
-  }
-
-  var serialNumber = String.fromCharCode.apply(
-      null,
-      new Uint8Array(serialNumberStringCharacteristic.value));
-
-  console.log('Serial Number: ' + serialNumber);
-  setSerialNumber(serialNumber);
-}
-
-/**
- * Updates the Hardware Revision String field based on the value of the
- * currently selected Hardware Revision String characteristic.
- */
-function updateHardwareRevisionStringValue() {
-  if (!hardwareRevisionStringCharacteristic) {
-    console.log('No Hardware Revision String Characteristic selected');
-    return;
-  }
-
-  // Since this function is called after a read request, the value should be
-  // present if the read was successful but it may be undefined if the read
-  // failed, so check here.
-  if (!hardwareRevisionStringCharacteristic.value) {
-    console.log('No Hardware Revision String value has been read');
-    return;
-  }
-
-  var hardwareRevision = String.fromCharCode.apply(
-      null,
-      new Uint8Array(hardwareRevisionStringCharacteristic.value));
-
-  console.log('Hardware Revision: ' + hardwareRevision);
-  setHardwareRevision(hardwareRevision);
+  setFieldValue(id, valueString);
 }
 
 /**
  * Helper functions to set the values of Device Information UI fields.
  */
 function setFieldValue(id, value) {
+  var finalValue = (value === undefined) ? '-' : value;
+  console.log('Setting field with ID "' + id + '" to value: "' + value + '"');
+
   var div = document.getElementById(id);
   div.innerHTML = '';
-  div.appendChild(document.createTextNode((value === undefined) ? '-' : value));
-}
-
-function setManufacturerName(value) {
-  setFieldValue('manufacturer-name-string', value);
-}
-
-function setSerialNumber(value) {
-  setFieldValue('serial-number-string', value);
-}
-
-function setHardwareRevision(value) {
-  setFieldValue('hardware-revision-string', value);
+  div.appendChild(document.createTextNode(finalValue));
 }
 
 function clearAllFields() {
-  setManufacturerName(undefined);
-  setSerialNumber(undefined);
+  setFieldValue('manufacturer-name-string', undefined);
+  setFieldValue('serial-number-string', undefined);
+  setFieldValue('hardware-revision-string', undefined);
 }
 
 /**
