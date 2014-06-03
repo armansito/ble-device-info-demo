@@ -3,6 +3,8 @@ var DEVICE_INFO_SERVICE_UUID           = '0000180a-0000-1000-8000-00805f9b34fb';
 var MANUFACTURER_NAME_STRING_CHRC_UUID = '00002a29-0000-1000-8000-00805f9b34fb';
 var SERIAL_NUMBER_STRING_CHRC_UUID     = '00002a25-0000-1000-8000-00805f9b34fb';
 var HARDWARE_REVISION_STRING_CHRC_UUID = '00002a27-0000-1000-8000-00805f9b34fb';
+var FIRMWARE_REVISION_STRING_CHRC_UUID = '00002a26-0000-1000-8000-00805f9b34fb';
+var SOFTWARE_REVISION_STRING_CHRC_UUID = '00002a28-0000-1000-8000-00805f9b34fb';
 
 // The currently displayed service and characteristics.
 var deviceInfoService;
@@ -67,6 +69,14 @@ function selectService(service) {
         console.log('Setting Hardware Revision String Characteristic: ' +
                     chrc.instanceId);
         fieldId = 'hardware-revision-string';
+      } else if (chrc.uuid == FIRMWARE_REVISION_STRING_CHRC_UUID) {
+        console.log('Setting Firmware Revision String Characteristic: ' +
+                    chrc.instanceId);
+        fieldId = 'firmware-revision-string';
+      } else if (chrc.uuid == SOFTWARE_REVISION_STRING_CHRC_UUID) {
+        console.log('Setting Software Revision String Characteristic: ' +
+                    chrc.instanceId);
+        fieldId = 'software-revision-string';
       }
 
       if (fieldId === undefined) {
