@@ -5,6 +5,7 @@ var SERIAL_NUMBER_STRING_CHRC_UUID     = '00002a25-0000-1000-8000-00805f9b34fb';
 var HARDWARE_REVISION_STRING_CHRC_UUID = '00002a27-0000-1000-8000-00805f9b34fb';
 var FIRMWARE_REVISION_STRING_CHRC_UUID = '00002a26-0000-1000-8000-00805f9b34fb';
 var SOFTWARE_REVISION_STRING_CHRC_UUID = '00002a28-0000-1000-8000-00805f9b34fb';
+var PNP_ID_CHRC_UUID                   = '00002a50-0000-1000-8000-00805f9b34fb';
 
 // The currently displayed service and characteristics.
 var deviceInfoService;
@@ -56,6 +57,7 @@ function selectService(service) {
 
     chrcs.forEach(function (chrc) {
       var fieldId;
+      var valueDisplayFunction = updateStringValue;
 
       if (chrc.uuid == MANUFACTURER_NAME_STRING_CHRC_UUID) {
         console.log('Setting Manufacturer Name String Characteristic: ' +
@@ -77,6 +79,10 @@ function selectService(service) {
         console.log('Setting Software Revision String Characteristic: ' +
                     chrc.instanceId);
         fieldId = 'software-revision-string';
+      } else if (chrc.uuid == PNP_ID_CHRC_UUID) {
+        console.log('Setting PnP ID Characteristic: ' + chrc.instanceId);
+        fieldId = 'pnp-id';
+        valueDisplayFunction = updatePnpIdValue;
       }
 
       if (fieldId === undefined) {
@@ -101,7 +107,7 @@ function selectService(service) {
           return;
 
         characteristicMap[fieldId] = readChrc;
-        updateStringValue(fieldId, readChrc);
+        valueDisplayFunction(fieldId, readChrc);
       });
     });
   });
@@ -128,6 +134,36 @@ function updateStringValue(id, characteristic) {
 }
 
 /**
+ * Processes the value of the PnP ID characteristic and updates the UI.
+ */
+function updatePnpIdValue(id, characteristic) {
+  // Since this function is called after a read request, the value should be
+  // present if the read was successful but it may be undefined if the read
+  // failed, so check here.
+  if (!characteristic.value) {
+    console.log('No value has been read for characteristic: ' +
+                characteristic.instanceId);
+    return;
+  }
+
+  var valueBytes = new Uint8Array(characteristic.value);
+  if (valueBytes.length != 7) {
+    console.log('Expected 7 bytes for the PnP ID value');
+    return;
+  }
+
+  var vendorIdSource = valueBytes[0];
+  var vendorId = valueBytes[1] | valueBytes[2] << 8;
+  var productId = valueBytes[3] | valueBytes[4] << 8;
+  var productVersion = valueBytes[5] | valueBytes[6] << 8;
+
+  setFieldValue('vendor-id-source', vendorIdSource);
+  setFieldValue('vendor-id', vendorId);
+  setFieldValue('product-id', productId);
+  setFieldValue('product-version', productVersion);
+}
+
+/**
  * Helper functions to set the values of Device Information UI fields.
  */
 function setFieldValue(id, value) {
@@ -143,6 +179,12 @@ function clearAllFields() {
   setFieldValue('manufacturer-name-string', undefined);
   setFieldValue('serial-number-string', undefined);
   setFieldValue('hardware-revision-string', undefined);
+  setFieldValue('firmware-revision-string', undefined);
+  setFieldValue('software-revision-string', undefined);
+  setFieldValue('vendor-id-source', undefined);
+  setFieldValue('vendor-id', undefined);
+  setFieldValue('product-id', undefined);
+  setFieldValue('product-version', undefined);
 }
 
 /**
