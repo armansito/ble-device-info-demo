@@ -1,8 +1,10 @@
 // GATT Device Information Service UUIDs
-var DEVICE_INFO_SERVICE_UUID = '0000180a-0000-1000-8000-00805f9b34fb';
+var DEVICE_INFO_SERVICE_UUID           = '0000180a-0000-1000-8000-00805f9b34fb';
+var MANUFACTURER_NAME_STRING_CHRC_UUID = '00002a29-0000-1000-8000-00805f9b34fb';
 
 // The currently displayed service and characteristics.
 var deviceInfoService;
+var manufacturerNameStringCharacteristic;
 
 // A mapping from device addresses to device names for found devices that expose
 // a Device Information service.
@@ -22,6 +24,7 @@ function selectService(service) {
   clearAllFields();
 
   deviceInfoService = service;
+  manufacturerNameStringCharacteristic = undefined;
 
   if (!service) {
     console.log('No service selected.');
@@ -30,7 +33,76 @@ function selectService(service) {
 
   console.log('GATT service selected: ' + service.instanceId);
 
-  // TODO: obtain characteristics.
+  // Get the characteristics of the selected service.
+  chrome.bluetoothLowEnergy.getCharacteristics(service.instanceId,
+                                               function (chrcs) {
+    if (chrome.runtime.lastError) {
+      console.log(chrome.runtime.lastError.message);
+      return;
+    }
+
+    // Make sure that the same service is still selected.
+    if (service.instanceId != deviceInfoService.instanceId)
+      return;
+
+    if (chrcs.length == 0) {
+      console.log('Service has no characteristics: ' + service.instanceId);
+      return;
+    }
+
+    chrcs.forEach(function (chrc) {
+      if (chrc.uuid == MANUFACTURER_NAME_STRING_CHRC_UUID) {
+        console.log('Setting Manufacturer Name String Characteristic: ' +
+                    chrc.instanceId);
+        manufacturerNameStringCharacteristic = chrc;
+
+        // Read the value of the characteristic once and store it.
+        chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
+                                                          function (readChrc) {
+          if (chrome.runtime.lastError) {
+            console.log(chrome.runtime.lastError.message);
+            return;
+          }
+
+          // Make sure that the same characteristic is still selected.
+          if (readChrc.instanceId !=
+              manufacturerNameStringCharacteristic.instanceId)
+            return;
+
+          manufacturerNameStringCharacteristic = readChrc;
+          updateManufacturerNameStringValue();
+        });
+
+        return;
+      }
+    });
+  });
+}
+
+/**
+ * Updates the Manufacturer Name String field based on the value of the
+ * currenrly selected Manufacturer Name String Characteristic.
+ */
+function updateManufacturerNameStringValue() {
+  if (!manufacturerNameStringCharacteristic) {
+    console.log('No Manufacturer Name String Characteristic selected');
+    return;
+  }
+
+  // Since this function is called after a read request, the value should be
+  // present if the read was successful but it may be undefined if the read
+  // failed, so check here.
+  if (!manufacturerNameStringCharacteristic.value) {
+    console.log('No Manufacturer Name String value has been read');
+    return;
+  }
+
+  var name = String.fromCharCode.apply(
+      null,
+      new Uint8Array(manufacturerNameStringCharacteristic.value));
+
+  console.log('Manufacturer Name: ' + name);
+  setManufacturerName('"' + name + '"');
 }
 
 /**
