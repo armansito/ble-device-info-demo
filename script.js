@@ -1,10 +1,12 @@
 // GATT Device Information Service UUIDs
 var DEVICE_INFO_SERVICE_UUID           = '0000180a-0000-1000-8000-00805f9b34fb';
 var MANUFACTURER_NAME_STRING_CHRC_UUID = '00002a29-0000-1000-8000-00805f9b34fb';
+var SERIAL_NUMBER_STRING_CHRC_UUID     = '00002a25-0000-1000-8000-00805f9b34fb';
 
 // The currently displayed service and characteristics.
 var deviceInfoService;
 var manufacturerNameStringCharacteristic;
+var serialNumberStringCharacteristic;
 
 // A mapping from device addresses to device names for found devices that expose
 // a Device Information service.
@@ -25,6 +27,7 @@ function selectService(service) {
 
   deviceInfoService = service;
   manufacturerNameStringCharacteristic = undefined;
+  serialNumberStringCharacteristic = undefined;
 
   if (!service) {
     console.log('No service selected.');
@@ -75,13 +78,38 @@ function selectService(service) {
 
         return;
       }
+
+      if (chrc.uuid == SERIAL_NUMBER_STRING_CHRC_UUID) {
+        console.log('Setting Serial Number String Characteristic: ' +
+                    chrc.instanceId);
+        serialNumberStringCharacteristic = chrc;
+
+        // Read the value of the characteristic once and store it.
+        chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
+                                                          function (readChrc) {
+          if (chrome.runtime.lastError) {
+            console.log(chrome.runtime.lastError.message);
+            return;
+          }
+
+          // Make sure that the same characteristic is still selected.
+          if (readChrc.instanceId !=
+              serialNumberStringCharacteristic.instanceId)
+            return;
+
+          serialNumberStringCharacteristic = readChrc;
+          updateSerialNumberStringValue();
+        });
+
+        return;
+      }
     });
   });
 }
 
 /**
  * Updates the Manufacturer Name String field based on the value of the
- * currenrly selected Manufacturer Name String Characteristic.
+ * currently selected Manufacturer Name String characteristic.
  */
 function updateManufacturerNameStringValue() {
   if (!manufacturerNameStringCharacteristic) {
@@ -106,6 +134,32 @@ function updateManufacturerNameStringValue() {
 }
 
 /**
+ * Updates the Serial Number String field based on the value of the
+ * currently selected Serian Number String characteristic.
+ */
+function updateSerialNumberStringValue() {
+  if (!serialNumberStringCharacteristic) {
+    console.log('No Serial Number String Characteristic selected');
+    return;
+  }
+
+  // Since this function is called after a read request, the value should be
+  // present if the read was successful but it may be undefined if the read
+  // failed, so check here.
+  if (!serialNumberStringCharacteristic.value) {
+    console.log('No Serial Number String value has been read');
+    return;
+  }
+
+  var serialNumber = String.fromCharCode.apply(
+      null,
+      new Uint8Array(serialNumberStringCharacteristic.value));
+
+  console.log('Serial Number: ' + serialNumber);
+  setSerialNumber(serialNumber);
+}
+
+/**
  * Helper functions to set the values of Device Information UI fields.
  */
 function setFieldValue(id, value) {
@@ -118,8 +172,13 @@ function setManufacturerName(value) {
   setFieldValue('manufacturer-name-string', value);
 }
 
+function setSerialNumber(value) {
+  setFieldValue('serial-number-string', value);
+}
+
 function clearAllFields() {
   setManufacturerName(undefined);
+  setSerialNumber(undefined);
 }
 
 /**
