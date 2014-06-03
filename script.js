@@ -2,11 +2,13 @@
 var DEVICE_INFO_SERVICE_UUID           = '0000180a-0000-1000-8000-00805f9b34fb';
 var MANUFACTURER_NAME_STRING_CHRC_UUID = '00002a29-0000-1000-8000-00805f9b34fb';
 var SERIAL_NUMBER_STRING_CHRC_UUID     = '00002a25-0000-1000-8000-00805f9b34fb';
+var HARDWARE_REVISION_STRING_CHRC_UUID = '00002a27-0000-1000-8000-00805f9b34fb';
 
 // The currently displayed service and characteristics.
 var deviceInfoService;
 var manufacturerNameStringCharacteristic;
 var serialNumberStringCharacteristic;
+var hardwareRevisionStringCharacteristic;
 
 // A mapping from device addresses to device names for found devices that expose
 // a Device Information service.
@@ -28,6 +30,7 @@ function selectService(service) {
   deviceInfoService = service;
   manufacturerNameStringCharacteristic = undefined;
   serialNumberStringCharacteristic = undefined;
+  hardwareRevisionStringCharacteristic = undefined;
 
   if (!service) {
     console.log('No service selected.');
@@ -103,6 +106,31 @@ function selectService(service) {
 
         return;
       }
+
+      if (chrc.uuid == HARDWARE_REVISION_STRING_CHRC_UUID) {
+        console.log('Setting Hardware Revision String Characteristic: ' +
+                    chrc.instanceId);
+        hardwareRevisionStringCharacteristic = chrc;
+
+        // Read the value of the characteristic once and store it.
+        chrome.bluetoothLowEnergy.readCharacteristicValue(chrc.instanceId,
+                                                          function (readChrc) {
+          if (chrome.runtime.lastError) {
+            console.log(chrome.runtime.lastError.message);
+            return;
+          }
+
+          // Make sure that the same characteristic is still selected.
+          if (readChrc.instanceId !=
+              hardwareRevisionStringCharacteristic.instanceId)
+            return;
+
+          hardwareRevisionStringCharacteristic = readChrc;
+          updateHardwareRevisionStringValue();
+        });
+
+        return;
+      }
     });
   });
 }
@@ -160,6 +188,32 @@ function updateSerialNumberStringValue() {
 }
 
 /**
+ * Updates the Hardware Revision String field based on the value of the
+ * currently selected Hardware Revision String characteristic.
+ */
+function updateHardwareRevisionStringValue() {
+  if (!hardwareRevisionStringCharacteristic) {
+    console.log('No Hardware Revision String Characteristic selected');
+    return;
+  }
+
+  // Since this function is called after a read request, the value should be
+  // present if the read was successful but it may be undefined if the read
+  // failed, so check here.
+  if (!hardwareRevisionStringCharacteristic.value) {
+    console.log('No Hardware Revision String value has been read');
+    return;
+  }
+
+  var hardwareRevision = String.fromCharCode.apply(
+      null,
+      new Uint8Array(hardwareRevisionStringCharacteristic.value));
+
+  console.log('Hardware Revision: ' + hardwareRevision);
+  setHardwareRevision(hardwareRevision);
+}
+
+/**
  * Helper functions to set the values of Device Information UI fields.
  */
 function setFieldValue(id, value) {
@@ -174,6 +228,10 @@ function setManufacturerName(value) {
 
 function setSerialNumber(value) {
   setFieldValue('serial-number-string', value);
+}
+
+function setHardwareRevision(value) {
+  setFieldValue('hardware-revision-string', value);
 }
 
 function clearAllFields() {
