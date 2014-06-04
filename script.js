@@ -168,14 +168,13 @@ function updatePnpIdValue(id, characteristic) {
  */
 function setFieldValue(id, value) {
   var finalValue = (value === undefined) ? '-' : value;
-  console.log('Setting field with ID "' + id + '" to value: "' + value + '"');
-
   var div = document.getElementById(id);
   div.innerHTML = '';
   div.appendChild(document.createTextNode(finalValue));
 }
 
 function clearAllFields() {
+  console.log('Clear all fields');
   setFieldValue('manufacturer-name-string', undefined);
   setFieldValue('serial-number-string', undefined);
   setFieldValue('hardware-revision-string', undefined);
