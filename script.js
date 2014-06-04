@@ -331,9 +331,11 @@ function main() {
 
     // See if this is the currently selected service. If so, unselect it.
     console.log('Device Information service removed: ' + service.instanceId);
+    var selectedRemoved = false;
     if (deviceInfoService && deviceInfoService.instanceId == service.instanceId) {
       console.log('The selected service disappeared!');
       selectService(undefined);
+      selectedRemoved = true;
     }
 
     // Remove the associated device from the map only if it has no other Device
@@ -371,6 +373,8 @@ function main() {
         console.log('Removing device: ' + device.address);
         delete deviceInfoDevicesMap[device.address];
         updateDeviceSelector();
+        if (selectedRemoved)
+          deviceSelector.onchange();  // Forcefully select the next device.
       });
     });
   });
