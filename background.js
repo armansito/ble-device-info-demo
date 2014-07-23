@@ -1,12 +1,14 @@
 chrome.app.runtime.onLaunched.addListener(function() {
   chrome.app.window.create('main.html', {
-    'bounds': {
-      'width': 585,
-      'height': 300,
+    'innerBounds': {
+      'width': 635,
+      'height': 370,
+      'minWidth': 635,
+      'minHeight': 370,
+      'maxWidth': 635,
+      'maxHeight': 370,
       'left': 100,
       'top': 100
-    },
-    minWidth: 585,
-    minHeight: 300
+    }
   });
 });

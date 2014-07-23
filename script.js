@@ -226,6 +226,38 @@ function main() {
   // Set up the UI to look like no device was initially selected.
   selectService(undefined);
 
+  // Request information about the local Bluetooth adapter to be displayed in
+  // the UI.
+  var updateAdapterState = function (adapterState) {
+    var addressField = document.getElementById('adapter-address');
+    var nameField = document.getElementById('adapter-name');
+
+    var setAdapterField = function (field, value) {
+      field.innerHTML = '';
+      field.appendChild(document.createTextNode(value));
+    };
+
+    if (!adapterState) {
+      setAdapterField(nameField, 'No adapter');
+      setAdapterField(addressField, 'unknown');
+      return;
+    }
+
+    setAdapterField(addressField,
+                    adapterState.address ? adapterState.address : 'unknown');
+    setAdapterField(nameField,
+                    adapterState.name ? adapterState.name : 'Local Adapter');
+  };
+
+  chrome.bluetooth.getAdapterState(function (adapterState) {
+    if (chrome.runtime.lastError)
+      console.log(chrome.runtime.lastError.message);
+
+    updateAdapterState(adapterState);
+  });
+
+  chrome.bluetooth.onAdapterStateChanged.addListener(updateAdapterState);
+
   // Initialize |deviceInfoDevicesMap|.
   chrome.bluetooth.getDevices(function (devices) {
     if (chrome.runtime.lastError) {
